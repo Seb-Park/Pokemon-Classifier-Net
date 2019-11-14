@@ -1,0 +1,6 @@
+bulbasaur
+charmander
+eevee
+pikachu
+poliwhirl
+squirtle
