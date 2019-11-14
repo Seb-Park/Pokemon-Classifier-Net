@@ -139,7 +139,7 @@ def create_image_lists(image_dir, testing_percentage, validation_percentage):
     into training, testing, and validation sets within each label.
   """
   if not gfile.Exists(image_dir):
-    tf.logging.error("Image directory '" + image_dir + "' not found.")
+    tf.compat.v1.compat.v1.logging.error("Image directory '" + image_dir + "' not found.")
     return None
   result = collections.OrderedDict()
   sub_dirs = [
@@ -153,18 +153,18 @@ def create_image_lists(image_dir, testing_percentage, validation_percentage):
     dir_name = os.path.basename(sub_dir)
     if dir_name == image_dir:
       continue
-    tf.logging.info("Looking for images in '" + dir_name + "'")
+    tf.compat.v1.logging.info("Looking for images in '" + dir_name + "'")
     for extension in extensions:
       file_glob = os.path.join(image_dir, dir_name, '*.' + extension)
       file_list.extend(gfile.Glob(file_glob))
     if not file_list:
-      tf.logging.warning('No files found')
+      tf.compat.v1.logging.warning('No files found')
       continue
     if len(file_list) < 20:
-      tf.logging.warning(
+      tf.compat.v1.logging.warning(
           'WARNING: Folder has less than 20 images, which may cause issues.')
     elif len(file_list) > MAX_NUM_IMAGES_PER_CLASS:
-      tf.logging.warning(
+      tf.compat.v1.logging.warning(
           'WARNING: Folder {} has more than {} images. Some images will '
           'never be selected.'.format(dir_name, MAX_NUM_IMAGES_PER_CLASS))
     label_name = re.sub(r'[^a-z0-9]+', ' ', dir_name.lower())
@@ -223,13 +223,13 @@ def get_image_path(image_lists, label_name, index, image_dir, category):
 
   """
   if label_name not in image_lists:
-    tf.logging.fatal('Label does not exist %s.', label_name)
+    tf.compat.v1.logging.fatal('Label does not exist %s.', label_name)
   label_lists = image_lists[label_name]
   if category not in label_lists:
-    tf.logging.fatal('Category does not exist %s.', category)
+    tf.compat.v1.logging.fatal('Category does not exist %s.', category)
   category_list = label_lists[category]
   if not category_list:
-    tf.logging.fatal('Label %s has no images in the category %s.',
+    tf.compat.v1.logging.fatal('Label %s has no images in the category %s.',
                      label_name, category)
   mod_index = index % len(category_list)
   base_name = category_list[mod_index]
@@ -335,7 +335,7 @@ def maybe_download_and_extract(data_url):
     filepath, _ = urllib.request.urlretrieve(data_url, filepath, _progress)
     print()
     statinfo = os.stat(filepath)
-    tf.logging.info('Successfully downloaded', filename, statinfo.st_size,
+    tf.compat.v1.logging.info('Successfully downloaded', filename, statinfo.st_size,
                     'bytes.')
   tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
@@ -358,11 +358,11 @@ def create_bottleneck_file(bottleneck_path, image_lists, label_name, index,
                            decoded_image_tensor, resized_input_tensor,
                            bottleneck_tensor):
   """Create a single bottleneck file."""
-  tf.logging.info('Creating bottleneck at ' + bottleneck_path)
+  tf.compat.v1.logging.info('Creating bottleneck at ' + bottleneck_path)
   image_path = get_image_path(image_lists, label_name, index,
                               image_dir, category)
   if not gfile.Exists(image_path):
-    tf.logging.fatal('File does not exist %s', image_path)
+    tf.compat.v1.logging.fatal('File does not exist %s', image_path)
   image_data = gfile.FastGFile(image_path, 'rb').read()
   try:
     bottleneck_values = run_bottleneck_on_image(
@@ -422,7 +422,7 @@ def get_or_create_bottleneck(sess, image_lists, label_name, index, image_dir,
   try:
     bottleneck_values = [float(x) for x in bottleneck_string.split(',')]
   except ValueError:
-    tf.logging.warning('Invalid float found, recreating bottleneck')
+    tf.compat.v1.logging.warning('Invalid float found, recreating bottleneck')
     did_hit_error = True
   if did_hit_error:
     create_bottleneck_file(bottleneck_path, image_lists, label_name, index,
@@ -477,7 +477,7 @@ def cache_bottlenecks(sess, image_lists, image_dir, bottleneck_dir,
 
         how_many_bottlenecks += 1
         if how_many_bottlenecks % 100 == 0:
-          tf.logging.info(
+          tf.compat.v1.logging.info(
               str(how_many_bottlenecks) + ' bottleneck files created.')
 
 
@@ -588,7 +588,7 @@ def get_random_distorted_bottlenecks(
     image_path = get_image_path(image_lists, label_name, image_index, image_dir,
                                 category)
     if not gfile.Exists(image_path):
-      tf.logging.fatal('File does not exist %s', image_path)
+      tf.compat.v1.logging.fatal('File does not exist %s', image_path)
     jpeg_data = gfile.FastGFile(image_path, 'rb').read()
     # Note that we materialize the distorted_image_data as a numpy array before
     # sending running inference on the image. This involves 2 memory copies and
@@ -832,9 +832,9 @@ def save_graph_to_file(sess, graph, graph_file_name):
 
 def prepare_file_system():
   # Setup the directory we'll write summaries to for TensorBoard
-  if tf.gfile.Exists(FLAGS.summaries_dir):
+  if tf.io.gfile.exists(FLAGS.summaries_dir):
     tf.gfile.DeleteRecursively(FLAGS.summaries_dir)
-  tf.gfile.MakeDirs(FLAGS.summaries_dir)
+  tf.io.gfile.makedirs(FLAGS.summaries_dir)
   if FLAGS.intermediate_store_frequency > 0:
     ensure_dir_exists(FLAGS.intermediate_output_graphs_dir)
   return
@@ -874,13 +874,13 @@ def create_model_info(architecture):
   elif architecture.startswith('mobilenet_'):
     parts = architecture.split('_')
     if len(parts) != 3 and len(parts) != 4:
-      tf.logging.error("Couldn't understand architecture name '%s'",
+      tf.compat.v1.logging.error("Couldn't understand architecture name '%s'",
                        architecture)
       return None
     version_string = parts[1]
     if (version_string != '1.0' and version_string != '0.75' and
         version_string != '0.50' and version_string != '0.25'):
-      tf.logging.error(
+      tf.compat.v1.logging.error(
           """"The Mobilenet version should be '1.0', '0.75', '0.50', or '0.25',
   but found '%s' for architecture '%s'""",
           version_string, architecture)
@@ -888,7 +888,7 @@ def create_model_info(architecture):
     size_string = parts[2]
     if (size_string != '224' and size_string != '192' and
         size_string != '160' and size_string != '128'):
-      tf.logging.error(
+      tf.compat.v1.logging.error(
           """The Mobilenet input size should be '224', '192', '160', or '128',
  but found '%s' for architecture '%s'""",
           size_string, architecture)
@@ -897,7 +897,7 @@ def create_model_info(architecture):
       is_quantized = False
     else:
       if parts[3] != 'quantized':
-        tf.logging.error(
+        tf.compat.v1.logging.error(
             "Couldn't understand architecture suffix '%s' for '%s'", parts[3],
             architecture)
         return None
@@ -919,7 +919,7 @@ def create_model_info(architecture):
     input_mean = 127.5
     input_std = 127.5
   else:
-    tf.logging.error("Couldn't understand architecture name '%s'", architecture)
+    tf.compat.v1.logging.error("Couldn't understand architecture name '%s'", architecture)
     raise ValueError('Unknown architecture', architecture)
 
   return {
@@ -967,7 +967,7 @@ def add_jpeg_decoding(input_width, input_height, input_depth, input_mean,
 def main(_):
   # Needed to make sure the logging output is visible.
   # See https://github.com/tensorflow/tensorflow/issues/3047
-  tf.logging.set_verbosity(tf.logging.INFO)
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
   # Prepare necessary directories  that can be used during training
   prepare_file_system()
@@ -975,7 +975,7 @@ def main(_):
   # Gather information about the model architecture we'll be using.
   model_info = create_model_info(FLAGS.architecture)
   if not model_info:
-    tf.logging.error('Did not recognize architecture flag')
+    tf.compat.v1.logging.error('Did not recognize architecture flag')
     return -1
 
   # Set up the pre-trained graph.
@@ -988,10 +988,10 @@ def main(_):
                                    FLAGS.validation_percentage)
   class_count = len(image_lists.keys())
   if class_count == 0:
-    tf.logging.error('No valid folders of images found at ' + FLAGS.image_dir)
+    tf.compat.v1.logging.error('No valid folders of images found at ' + FLAGS.image_dir)
     return -1
   if class_count == 1:
-    tf.logging.error('Only one valid folder of images found at ' +
+    tf.compat.v1.logging.error('Only one valid folder of images found at ' +
                      FLAGS.image_dir +
                      ' - multiple classes are needed for classification.')
     return -1
@@ -1078,9 +1078,9 @@ def main(_):
             [evaluation_step, cross_entropy],
             feed_dict={bottleneck_input: train_bottlenecks,
                        ground_truth_input: train_ground_truth})
-        tf.logging.info('%s: Step %d: Train accuracy = %.1f%%' %
+        tf.compat.v1.logging.info('%s: Step %d: Train accuracy = %.1f%%' %
                         (datetime.now(), i, train_accuracy * 100))
-        tf.logging.info('%s: Step %d: Cross entropy = %f' %
+        tf.compat.v1.logging.info('%s: Step %d: Cross entropy = %f' %
                         (datetime.now(), i, cross_entropy_value))
         validation_bottlenecks, validation_ground_truth, _ = (
             get_random_cached_bottlenecks(
@@ -1095,7 +1095,7 @@ def main(_):
             feed_dict={bottleneck_input: validation_bottlenecks,
                        ground_truth_input: validation_ground_truth})
         validation_writer.add_summary(validation_summary, i)
-        tf.logging.info('%s: Step %d: Validation accuracy = %.1f%% (N=%d)' %
+        tf.compat.v1.logging.info('%s: Step %d: Validation accuracy = %.1f%% (N=%d)' %
                         (datetime.now(), i, validation_accuracy * 100,
                          len(validation_bottlenecks)))
 
@@ -1106,7 +1106,7 @@ def main(_):
           and i > 0):
         intermediate_file_name = (FLAGS.intermediate_output_graphs_dir +
                                   'intermediate_' + str(i) + '.pb')
-        tf.logging.info('Save intermediate result to : ' +
+        tf.compat.v1.logging.info('Save intermediate result to : ' +
                         intermediate_file_name)
         save_graph_to_file(sess, graph, intermediate_file_name)
 
@@ -1122,14 +1122,14 @@ def main(_):
         [evaluation_step, prediction],
         feed_dict={bottleneck_input: test_bottlenecks,
                    ground_truth_input: test_ground_truth})
-    tf.logging.info('Final test accuracy = %.1f%% (N=%d)' %
+    tf.compat.v1.logging.info('Final test accuracy = %.1f%% (N=%d)' %
                     (test_accuracy * 100, len(test_bottlenecks)))
 
     if FLAGS.print_misclassified_test_images:
-      tf.logging.info('=== MISCLASSIFIED TEST IMAGES ===')
+      tf.compat.v1.logging.info('=== MISCLASSIFIED TEST IMAGES ===')
       for i, test_filename in enumerate(test_filenames):
         if predictions[i] != test_ground_truth[i].argmax():
-          tf.logging.info('%70s  %s' %
+          tf.compat.v1.logging.info('%70s  %s' %
                           (test_filename,
                            list(image_lists.keys())[predictions[i]]))
 
@@ -1323,4 +1323,4 @@ if __name__ == '__main__':
       for more information on Mobilenet.\
       """)
   FLAGS, unparsed = parser.parse_known_args()
-  tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
+  tf.compat.v1.app.run(main=main, argv=[sys.argv[0]] + unparsed)
