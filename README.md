@@ -1,5 +1,7 @@
 # Overview
+# Forked from Google Code Labs
 
+I am using this pretrained classifier net to power the neural net behind my Pokédex Mobile App.
 This repo contains code for the "TensorFlow for poets 2" series of codelabs.
 
 There are multiple versions of this codelab depending on which version 
