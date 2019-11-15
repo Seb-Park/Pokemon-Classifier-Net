@@ -139,7 +139,7 @@ def create_image_lists(image_dir, testing_percentage, validation_percentage):
     into training, testing, and validation sets within each label.
   """
   if not gfile.Exists(image_dir):
-    tf.compat.v1.compat.v1.logging.error("Image directory '" + image_dir + "' not found.")
+    tf.compat.v1.logging.error("Image directory '" + image_dir + "' not found.")
     return None
   result = collections.OrderedDict()
   sub_dirs = [

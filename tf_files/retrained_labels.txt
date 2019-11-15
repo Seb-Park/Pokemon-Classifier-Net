@@ -1,6 +1,9 @@
 bulbasaur
+butterfree
+caterpie
 charmander
 eevee
+metapod
 pikachu
 poliwhirl
 squirtle
