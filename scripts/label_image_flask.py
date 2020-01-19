@@ -23,9 +23,9 @@ from flask import Flask, escape, request, jsonify
 import argparse
 import sys
 import time
-import pybase64
 
 import numpy as np
+import requests
 import tensorflow as tf
 
 app = Flask(__name__)
@@ -33,8 +33,10 @@ app = Flask(__name__)
 @app.route('/')
 def mainServer():
     file_name = "tf_files/flower_photos/daisy/3475870145_685a19116d.jpg"
-    model_file = "../tf_files/retrained_graph.pb"
-    label_file = "../tf_files/retrained_labels.txt"
+    model_file = "../tf_files/retrained_graph.pb"#add ../ at beginning if running from scripts folder. If running from classiefier folder
+    #e.g.python -m scripts.label_image_flask     --graph=tf_files/retrained_graph.pb      --image=caterCard.png
+
+    label_file = "tf_files/retrained_labels.txt"
     input_height = 224
     input_width = 224
     input_mean = 128
@@ -59,11 +61,10 @@ def mainServer():
     args = parser.parse_args()
 
     if args.graph:
-      # model_file = args.graph
-      "../tf_files/retrained_graph.pb"
-    if request.args.get('img'):
+      model_file = args.graph
+    # if args.image:
       # file_name = args.image
-      file_name = request.args.get('img')
+    file_name = request.args.get('img')
     if args.labels:
       label_file = args.labels
     if args.input_height:
@@ -80,20 +81,12 @@ def mainServer():
       output_layer = args.output_layer
 
     graph = load_graph(model_file)
-    # t = read_tensor_from_image_file(file_name,
-    #                                 input_height=input_height,
-    #                                 input_width=input_width,
-    #                                 input_mean=input_mean,
-    #                                 input_std=input_std)
-
-    t = read_tensor_from_image_b64(file_name,
+    t = read_tensor_from_image_url(file_name,
                                     input_height=input_height,
                                     input_width=input_width,
                                     input_mean=input_mean,
                                     input_std=input_std)
 
-    print("SHAPE")
-    print(t.shape)
     input_name = "import/" + input_layer
     output_name = "import/" + output_layer
     input_operation = graph.get_operation_by_name(input_name);
@@ -152,41 +145,48 @@ def read_tensor_from_image_file(file_name, input_height=299, input_width=299,
   else:
     image_reader = tf.image.decode_jpeg(file_reader, channels = 3,
                                         name='jpeg_reader')
+    # image_reader = tf.image.decode_jpeg(
+    #     requests.get(file_name).content, channels=3, name="jpeg_reader")
   float_caster = tf.cast(image_reader, tf.float32)
   dims_expander = tf.expand_dims(float_caster, 0);
   resized = tf.image.resize_bilinear(dims_expander, [input_height, input_width])
   normalized = tf.divide(tf.subtract(resized, [input_mean]), [input_std])
-  sess = tf.Session()
+
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  sess = tf.Session(config=config)
+  # sess = tf.Session()
   result = sess.run(normalized)
 
   return result
 
-def read_tensor_from_image_b64(b64String, input_height=299, input_width=299,
+def read_tensor_from_image_url(url, input_height=299, input_width=299,
 				input_mean=0, input_std=255):
-  # input_name = "file_reader"
-  # output_name = "normalized"
-  # file_reader = tf.read_file(file_name, input_name)
-  # image_reader = tf.io.decode_base64(b64String, name='base64_reader')
-  # print(image_reader)
-  # image_reader = tf.image.decode_image(b64String, name='base64_reader')
-  # image_reader = tf.image.convert_image_dtype(image_reader,dtype = tf.float32)
-  # image_reader = tf.image.decode_png(b64, name = 'png_reader')
+  input_name = "file_reader"
+  output_name = "normalized"
+  file_reader = tf.read_file(url, input_name)
+  if url.endswith(".png"):
+    image_reader = tf.image.decode_png(requests.get(url).content, channels = 3,
+                                       name='png_reader')
+  elif url.endswith(".gif"):
+    image_reader = tf.squeeze(tf.image.decode_gif(requests.get(url).content,
+                                                  name='gif_reader'))
+  elif url.endswith(".bmp"):
+    image_reader = tf.image.decode_bmp(requests.get(url).content, name='bmp_reader')
+  else:
+    image_reader = tf.image.decode_jpeg(
+        requests.get(url).content, channels=3, name="jpeg_reader")
+  float_caster = tf.cast(image_reader, tf.float32)
+  dims_expander = tf.expand_dims(float_caster, 0);
+  resized = tf.image.resize_bilinear(dims_expander, [input_height, input_width])
+  normalized = tf.divide(tf.subtract(resized, [input_mean]), [input_std])
 
-  # float_caster = tf.cast(image_reader, tf.float32)
-  # dims_expander = tf.expand_dims(float_caster, 0);
-  # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Dims expander is !!!!!!!!!!!!!!!!!!!!!!!!!!1"+str(dims_expander))
-  # # resized = tf.image.resize(dims_expander, [input_height, input_width])
-  # resized = tf.image.resize_bilinear(dims_expander, [input_height, input_width])
-  # normalized = tf.divide(tf.subtract(resized, [input_mean]), [input_std])
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  sess = tf.Session(config=config)
   # sess = tf.Session()
-  # result = sess.run(normalized)
-  #
-  # return result
+  result = sess.run(normalized)
 
-
-  buf = str(pybase64.b64decode(b64String))
-  result = np.fromstring(buf, dtype=np.float32)
-  result = result.reshape((1, -1, -1, 3))
   return result
 
 def load_labels(label_file):
@@ -197,7 +197,7 @@ def load_labels(label_file):
   return label
 
 if __name__ == "__main__":
-  app.run(debug=True)
+  app.run(debug=True, port=3008, host='0.0.0.0')
   # file_name = "tf_files/flower_photos/daisy/3475870145_685a19116d.jpg"
   # model_file = "tf_files/retrained_graph.pb"
   # label_file = "tf_files/retrained_labels.txt"
@@ -219,11 +219,3 @@ if __name__ == "__main__":
   # parser.add_argument("--input_layer", help="name of input layer")
   # parser.add_argument("--output_layer", help="name of output layer")
   # mainServer(parser)
-
-def decode(base64_string):
-    if isinstance(base64_string, bytes):
-        base64_string = base64_string.decode("utf-8")
-
-    imgdata = base64.b64decode(base64_string)
-    img = skimage.io.imread(imgdata, plugin='imageio')
-    return img
